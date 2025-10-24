@@ -6,15 +6,13 @@ CREATE TABLE IF NOT EXISTS pizza_types (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create orders table to store all order information
+-- Create orders table to store order information
 CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_name TEXT NOT NULL,
-  pizza_type_id UUID NOT NULL REFERENCES pizza_types(id) ON DELETE RESTRICT,
-  quantity INTEGER NOT NULL DEFAULT 1,
   delivery_time TIME NOT NULL,
   payment_method TEXT NOT NULL CHECK (payment_method IN ('Efectivo', 'Transferencia')),
-  receipt_received BOOLEAN NOT NULL DEFAULT false,
+  receipt_status TEXT NOT NULL DEFAULT 'Pendiente' CHECK (receipt_status IN ('Pendiente', 'Recibido')),
   pickup_method TEXT NOT NULL CHECK (pickup_method IN ('Retiro en casa', 'Envio')),
   delivery_address TEXT,
   delivered BOOLEAN NOT NULL DEFAULT false,
@@ -22,9 +20,19 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create order_items table to support multiple pizzas per order
+CREATE TABLE IF NOT EXISTS order_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  pizza_type_id UUID NOT NULL REFERENCES pizza_types(id) ON DELETE RESTRICT,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(order_date);
-CREATE INDEX IF NOT EXISTS idx_orders_pizza_type ON orders(pizza_type_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_pizza ON order_items(pizza_type_id);
 
 -- Insert initial pizza types from the spreadsheet
 INSERT INTO pizza_types (name, price) VALUES
