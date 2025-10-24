@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,14 +27,19 @@ export default function NewPedidoPage() {
   const [pizzaTypes, setPizzaTypes] = useState<PizzaType[]>([])
   const [pizzaItems, setPizzaItems] = useState<PizzaItem[]>([{ pizza_type_id: "", quantity: 1 }])
   const [pickupMethod, setPickupMethod] = useState("Retiro en casa")
+  const [paymentMethod, setPaymentMethod] = useState("Efectivo")
+  const [receiptStatus, setReceiptStatus] = useState("Pendiente")
   const [loading, setLoading] = useState(false)
 
-  // Load pizza types on mount
-  useState(() => {
+  useEffect(() => {
     fetch("/api/pizzas")
       .then((res) => res.json())
-      .then((data) => setPizzaTypes(data))
-  })
+      .then((data) => {
+        console.log("[v0] Pizza types loaded:", data)
+        setPizzaTypes(data)
+      })
+      .catch((error) => console.error("[v0] Error loading pizza types:", error))
+  }, [])
 
   const addPizzaItem = () => {
     setPizzaItems([...pizzaItems, { pizza_type_id: "", quantity: 1 }])
@@ -61,12 +65,14 @@ export default function NewPedidoPage() {
     const orderData = {
       customer_name: formData.get("customer_name"),
       delivery_time: formData.get("delivery_time"),
-      payment_method: formData.get("payment_method"),
-      receipt_status: formData.get("receipt_status"),
-      pickup_method: formData.get("pickup_method"),
+      payment_method: paymentMethod,
+      receipt_status: receiptStatus,
+      pickup_method: pickupMethod,
       delivery_address: pickupMethod === "Envio" ? formData.get("delivery_address") : null,
       pizza_items: pizzaItems.filter((item) => item.pizza_type_id),
     }
+
+    console.log("[v0] Submitting order:", orderData)
 
     try {
       const response = await fetch("/api/orders", {
@@ -76,10 +82,17 @@ export default function NewPedidoPage() {
       })
 
       if (response.ok) {
+        console.log("[v0] Order created successfully")
         router.push("/pedidos")
+        router.refresh()
+      } else {
+        const error = await response.json()
+        console.error("[v0] Error response:", error)
+        alert("Error al crear el pedido: " + (error.error || "Error desconocido"))
       }
     } catch (error) {
       console.error("[v0] Error creating order:", error)
+      alert("Error al crear el pedido. Por favor intenta de nuevo.")
     } finally {
       setLoading(false)
     }
@@ -158,7 +171,7 @@ export default function NewPedidoPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="payment_method">Forma de Pago</Label>
-                <Select name="payment_method" required>
+                <Select name="payment_method" value={paymentMethod} onValueChange={setPaymentMethod} required>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
@@ -171,7 +184,7 @@ export default function NewPedidoPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="receipt_status">Comprobante</Label>
-                <Select name="receipt_status" defaultValue="Pendiente" required>
+                <Select name="receipt_status" value={receiptStatus} onValueChange={setReceiptStatus} required>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
